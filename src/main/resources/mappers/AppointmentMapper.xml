@@ -28,9 +28,11 @@
     </select>
 
     <select id="listByEmployee" parameterType="int" resultType="Appointment">
-        SELECT id, user_id AS userId, employee_id AS employeeId,
-            date, start_time AS startTime, end_time AS endTime, status
-        FROM appointments WHERE employee_id = #{employeeId}
+        SELECT id,
+               user_id     AS userId,
+               employee_id AS employeeId, date, start_time AS startTime, end_time AS endTime, status
+        FROM appointments
+        WHERE employee_id = #{employeeId}
     </select>
 
     <update id="updateStatus" parameterType="map">

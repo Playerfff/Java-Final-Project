@@ -3,6 +3,7 @@ package app.client;
 import app.common.Protocol;
 import app.common.models.Role;
 import app.client.ui.ConnectionStatusLabel;
+import app.client.DPIUtil;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -19,12 +20,10 @@ public class SchedulerGUI extends JFrame {
     private final String host;
     private final int port;
 
-    // Refactoring 3: Use a helper class for networking
     private ServerConnection server;
 
     private volatile Integer loggedUserId = null;
     private volatile String loggedUsername = null;
-    // Refactoring 1: Use Enum instead of String
     private volatile Role loggedRole = null;
 
     // UI Components
@@ -47,7 +46,7 @@ public class SchedulerGUI extends JFrame {
         this.server = new ServerConnection(host, port);
 
         setTitle("Appointment Scheduler System");
-        setSize(1000, 700);
+        setSize(DPIUtil.scale(1000), DPIUtil.scale(700));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -55,13 +54,15 @@ public class SchedulerGUI extends JFrame {
         // --- Header ---
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(new Color(50, 50, 60));
-        headerPanel.setBorder(new EmptyBorder(15, 20, 15, 20));
+        int v = DPIUtil.scale(15);
+        int h = DPIUtil.scale(20);
+        headerPanel.setBorder(new EmptyBorder(v, h, v, h));
 
         connectionStatusLabel = new ConnectionStatusLabel();
         lblWelcome = new JLabel("Welcome, Guest");
         lblWelcome.setForeground(Color.WHITE);
-        lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        lblWelcome.setBorder(new EmptyBorder(0, 20, 0, 0));
+        lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, DPIUtil.scale(16)));
+        lblWelcome.setBorder(new EmptyBorder(DPIUtil.scale(0), DPIUtil.scale(20), DPIUtil.scale(0), DPIUtil.scale(0)));
 
         btnLoginAction = new JButton("Login");
         styleButton(btnLoginAction, new Color(60, 140, 200));
@@ -106,7 +107,8 @@ public class SchedulerGUI extends JFrame {
             lblWelcome.setText("Welcome, Guest");
             btnLoginAction.setText("Login");
             btnLoginAction.setBackground(new Color(40, 167, 69));
-            JLabel info = new JLabel("<html><center><h2>Please Login to Manage Appointments</h2></center></html>");
+            JLabel info = new JLabel("<html><center>Please Login to Manage Appointments</center></html>");
+            info.setFont(new Font("Segoe UI", Font.BOLD, DPIUtil.scale(24)));
             info.setForeground(Color.GRAY);
             dashboardPanel.add(info);
         } else {
@@ -117,17 +119,24 @@ public class SchedulerGUI extends JFrame {
 
             // Role-Based Dashboard Logic
             if (loggedRole == Role.ADMIN) {
-                gbc.gridx = 0; dashboardPanel.add(btnAdminPanel, gbc);
-                gbc.gridx = 1; dashboardPanel.add(btnListEmps, gbc);
+                gbc.gridx = 0;
+                dashboardPanel.add(btnAdminPanel, gbc);
+                gbc.gridx = 1;
+                dashboardPanel.add(btnListEmps, gbc);
             } else if (loggedRole == Role.EMPLOYEE) {
                 updateButtonText(btnMyAppts, "Approve Requests", "📝");
-                gbc.gridx = 0; dashboardPanel.add(btnMyAppts, gbc);
-                gbc.gridx = 1; dashboardPanel.add(btnListEmps, gbc);
+                gbc.gridx = 0;
+                dashboardPanel.add(btnMyAppts, gbc);
+                gbc.gridx = 1;
+                dashboardPanel.add(btnListEmps, gbc);
             } else {
                 updateButtonText(btnMyAppts, "My Appointments", "📂");
-                gbc.gridx = 0; dashboardPanel.add(btnBook, gbc);
-                gbc.gridx = 1; dashboardPanel.add(btnMyAppts, gbc);
-                gbc.gridx = 2; dashboardPanel.add(btnListEmps, gbc);
+                gbc.gridx = 0;
+                dashboardPanel.add(btnBook, gbc);
+                gbc.gridx = 1;
+                dashboardPanel.add(btnMyAppts, gbc);
+                gbc.gridx = 2;
+                dashboardPanel.add(btnListEmps, gbc);
             }
         }
         dashboardPanel.revalidate();
@@ -153,14 +162,18 @@ public class SchedulerGUI extends JFrame {
                     tableModel.addRow(parts);
                 }
             }
-        } catch (Exception e) { return; }
+        } catch (Exception e) {
+            return;
+        }
 
         JPanel btnPanel = new JPanel();
         JButton btnAdd = new JButton("Add User");
         JButton btnEdit = new JButton("Edit Selected");
         JButton btnDelete = new JButton("Delete Selected");
 
-        btnPanel.add(btnAdd); btnPanel.add(btnEdit); btnPanel.add(btnDelete);
+        btnPanel.add(btnAdd);
+        btnPanel.add(btnEdit);
+        btnPanel.add(btnDelete);
         dlg.add(new JScrollPane(table), BorderLayout.CENTER);
         dlg.add(btnPanel, BorderLayout.SOUTH);
 
@@ -171,7 +184,12 @@ public class SchedulerGUI extends JFrame {
             if (JOptionPane.showConfirmDialog(dlg, msg, "Add User", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
                 String cmd = Protocol.CMD_ADMIN_ADD + " " + tfUser.getText() + "|" + new String(pfPass.getPassword()) + "|" + tfRole.getText();
                 server.send(cmd);
-                try { JOptionPane.showMessageDialog(dlg, server.readResponse()); dlg.dispose(); openAdminDialog(); } catch(Exception ex){}
+                try {
+                    JOptionPane.showMessageDialog(dlg, server.readResponse());
+                    dlg.dispose();
+                    openAdminDialog();
+                } catch (Exception ex) {
+                }
             }
         });
 
@@ -188,7 +206,12 @@ public class SchedulerGUI extends JFrame {
             if (JOptionPane.showConfirmDialog(dlg, msg, "Edit User", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
                 String cmd = Protocol.CMD_ADMIN_UPDATE + " " + id + "|" + tfUser.getText() + "|" + new String(pfPass.getPassword()) + "|" + tfRole.getText();
                 server.send(cmd);
-                try { JOptionPane.showMessageDialog(dlg, server.readResponse()); dlg.dispose(); openAdminDialog(); } catch(Exception ex){}
+                try {
+                    JOptionPane.showMessageDialog(dlg, server.readResponse());
+                    dlg.dispose();
+                    openAdminDialog();
+                } catch (Exception ex) {
+                }
             }
         });
 
@@ -198,11 +221,18 @@ public class SchedulerGUI extends JFrame {
             String id = (String) tableModel.getValueAt(row, 0);
             if (JOptionPane.showConfirmDialog(dlg, "Delete User ID " + id + "?") == JOptionPane.YES_OPTION) {
                 server.send(Protocol.CMD_ADMIN_DELETE + " " + id);
-                try { JOptionPane.showMessageDialog(dlg, server.readResponse()); dlg.dispose(); openAdminDialog(); } catch(Exception ex){}
+                try {
+                    JOptionPane.showMessageDialog(dlg, server.readResponse());
+                    dlg.dispose();
+                    openAdminDialog();
+                } catch (Exception ex) {
+                }
             }
         });
 
-        dlg.setSize(600, 400); dlg.setLocationRelativeTo(this); dlg.setVisible(true);
+        dlg.setSize(DPIUtil.scale(600), DPIUtil.scale(400));
+        dlg.setLocationRelativeTo(this);
+        dlg.setVisible(true);
     }
 
     // --- Networking ---
@@ -215,7 +245,10 @@ public class SchedulerGUI extends JFrame {
                     SwingUtilities.invokeLater(() -> {
                         connectionStatusLabel.startReconnecting();
                         btnLoginAction.setEnabled(false);
-                        if (loggedUserId != null) { loggedUserId = null; updateDashboardState(); }
+                        if (loggedUserId != null) {
+                            loggedUserId = null;
+                            updateDashboardState();
+                        }
                     });
                     if (server.connect()) {
                         SwingUtilities.invokeLater(() -> {
@@ -232,7 +265,9 @@ public class SchedulerGUI extends JFrame {
         if (loggedUserId == null) showLoginDialog();
         else {
             server.disconnect(); // Explicitly disconnect
-            loggedUserId = null; loggedUsername = null; loggedRole = null;
+            loggedUserId = null;
+            loggedUsername = null;
+            loggedRole = null;
             updateDashboardState();
         }
     }
@@ -242,26 +277,31 @@ public class SchedulerGUI extends JFrame {
         JDialog dlg = new JDialog(this, "Login System", true);
         dlg.setLayout(new BorderLayout());
         JPanel center = new JPanel(new GridLayout(3, 2, 10, 10));
-        center.setBorder(new EmptyBorder(20, 20, 20, 20));
+        int x = DPIUtil.scale(20);
+        center.setBorder(new EmptyBorder(x, x, x, x));
 
         JTextField tfUser = new JTextField();
         JPasswordField pf = new JPasswordField();
-        center.add(new JLabel("Username:")); center.add(tfUser);
-        center.add(new JLabel("Password:")); center.add(pf);
+        center.add(new JLabel("Username:"));
+        center.add(tfUser);
+        center.add(new JLabel("Password:"));
+        center.add(pf);
 
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton btnLogin = new JButton("Login");
         JButton btnSignup = new JButton("Register");
-        bottom.add(btnSignup); bottom.add(btnLogin);
-        dlg.add(center, BorderLayout.CENTER); dlg.add(bottom, BorderLayout.SOUTH);
-        dlg.setSize(400, 250); dlg.setLocationRelativeTo(this);
+        bottom.add(btnSignup);
+        bottom.add(btnLogin);
+        dlg.add(center, BorderLayout.CENTER);
+        dlg.add(bottom, BorderLayout.SOUTH);
+        dlg.setSize(DPIUtil.scale(400), DPIUtil.scale(250));
+        dlg.setLocationRelativeTo(this);
 
         btnLogin.addActionListener(e -> {
             String u = tfUser.getText().trim();
             String p = new String(pf.getPassword());
             if (u.isEmpty()) return;
 
-            // Refactoring 2: Use Protocol
             server.send(Protocol.CMD_LOGIN + " " + u + "|" + p);
             try {
                 String r = server.readResponse();
@@ -273,12 +313,16 @@ public class SchedulerGUI extends JFrame {
                     // Parse Role
                     try {
                         loggedRole = Role.valueOf(parts.length > 2 ? parts[2].toUpperCase() : "USER");
-                    } catch (IllegalArgumentException ex) { loggedRole = Role.USER; }
+                    } catch (IllegalArgumentException ex) {
+                        loggedRole = Role.USER;
+                    }
 
                     updateDashboardState();
                     dlg.dispose();
                 } else JOptionPane.showMessageDialog(dlg, "Login Failed: " + r);
-            } catch (Exception ex) { JOptionPane.showMessageDialog(dlg, "Network Error"); }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlg, "Network Error");
+            }
         });
 
         btnSignup.addActionListener(e -> {
@@ -290,7 +334,9 @@ public class SchedulerGUI extends JFrame {
                 String r = server.readResponse();
                 if (r != null && r.startsWith("OK")) JOptionPane.showMessageDialog(dlg, "Registered! Please Login.");
                 else JOptionPane.showMessageDialog(dlg, "Register Error: " + r);
-            } catch (Exception ex) { JOptionPane.showMessageDialog(dlg, "Network Error"); }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlg, "Network Error");
+            }
         });
         dlg.setVisible(true);
     }
@@ -304,7 +350,9 @@ public class SchedulerGUI extends JFrame {
                 if ("END".equals(line)) break;
                 if (line.startsWith("EMP ")) employees.add(line.substring(4));
             }
-        } catch (Exception e) { return; }
+        } catch (Exception e) {
+            return;
+        }
 
         JDialog dlg = new JDialog(this, "Book Appointment", true);
         dlg.setLayout(new BorderLayout(10, 10));
@@ -315,7 +363,8 @@ public class SchedulerGUI extends JFrame {
         dlg.add(top, BorderLayout.NORTH);
 
         JPanel grid = new JPanel(new GridLayout(0, 3, 5, 5));
-        grid.setBorder(new EmptyBorder(10, 10, 10, 10));
+        int x = DPIUtil.scale(10);
+        grid.setBorder(new EmptyBorder(x, x, x, x));
         List<JToggleButton> toggles = new ArrayList<>();
         ButtonGroup group = new ButtonGroup();
 
@@ -329,7 +378,9 @@ public class SchedulerGUI extends JFrame {
                 String t1 = String.format("%02d:00", h);
                 String label = d.format(fmt) + " " + t1;
                 JToggleButton btn = new JToggleButton(label);
-                group.add(btn); toggles.add(btn); grid.add(btn);
+                group.add(btn);
+                toggles.add(btn);
+                grid.add(btn);
             }
         }
         dlg.add(new JScrollPane(grid), BorderLayout.CENTER);
@@ -351,13 +402,16 @@ public class SchedulerGUI extends JFrame {
                         String resp = server.readResponse();
                         JOptionPane.showMessageDialog(dlg, resp);
                         if (resp.startsWith("OK")) dlg.dispose();
-                    } catch (Exception ex) {}
+                    } catch (Exception ex) {
+                    }
                     return;
                 }
             }
         });
         dlg.add(btnConfirm, BorderLayout.SOUTH);
-        dlg.setSize(800, 600); dlg.setLocationRelativeTo(this); dlg.setVisible(true);
+        dlg.setSize(DPIUtil.scale(800), DPIUtil.scale(600));
+        dlg.setLocationRelativeTo(this);
+        dlg.setVisible(true);
     }
 
     private void showAppointments() {
@@ -369,7 +423,9 @@ public class SchedulerGUI extends JFrame {
                 if ("END".equals(line)) break;
                 if (line.startsWith("APPT ")) model.addElement(line.substring(5));
             }
-        } catch (Exception e) { return; }
+        } catch (Exception e) {
+            return;
+        }
 
         JDialog dlg = new JDialog(this, "Appointments", true);
         dlg.setLayout(new BorderLayout());
@@ -383,12 +439,19 @@ public class SchedulerGUI extends JFrame {
                 if (val != null) {
                     String id = val.split("\\|")[0];
                     server.send(Protocol.CMD_CONFIRM + " " + id);
-                    try { JOptionPane.showMessageDialog(dlg, server.readResponse()); dlg.dispose(); showAppointments(); } catch (Exception ex) {}
+                    try {
+                        JOptionPane.showMessageDialog(dlg, server.readResponse());
+                        dlg.dispose();
+                        showAppointments();
+                    } catch (Exception ex) {
+                    }
                 }
             });
             dlg.add(btnConf, BorderLayout.SOUTH);
         }
-        dlg.setSize(600, 400); dlg.setLocationRelativeTo(this); dlg.setVisible(true);
+        dlg.setSize(DPIUtil.scale(600), DPIUtil.scale(400));
+        dlg.setLocationRelativeTo(this);
+        dlg.setVisible(true);
     }
 
     private void showEmployeeDialog() {
@@ -400,25 +463,30 @@ public class SchedulerGUI extends JFrame {
                 if ("END".equals(line)) break;
                 if (line.startsWith("EMP ")) employees.add(line.substring(4));
             }
-        } catch (Exception e) { return; }
+        } catch (Exception e) {
+            return;
+        }
         JDialog dlg = new JDialog(this, "Employees", true);
         DefaultListModel<String> model = new DefaultListModel<>();
         for (String s : employees) model.addElement(s);
         dlg.add(new JScrollPane(new JList<>(model)), BorderLayout.CENTER);
-        dlg.setSize(300, 400); dlg.setLocationRelativeTo(this); dlg.setVisible(true);
+        dlg.setSize(DPIUtil.scale(300), DPIUtil.scale(400));
+        dlg.setLocationRelativeTo(this);
+        dlg.setVisible(true);
     }
 
     // --- Helpers ---
     private JButton createDashboardButton(String text, String icon) {
         JButton btn = new JButton();
         updateButtonText(btn, text, icon);
-        btn.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        btn.setFont(new Font("Segoe UI", Font.PLAIN, DPIUtil.scale(16)));
         btn.setFocusPainted(false);
         btn.setBackground(Color.WHITE);
-        btn.setPreferredSize(new Dimension(220, 180));
+        btn.setPreferredSize(new Dimension(DPIUtil.scale(220), DPIUtil.scale(180)));
+        int x = DPIUtil.scale(10);
         btn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
+                BorderFactory.createEmptyBorder(x, x, x, x)));
         return btn;
     }
 
@@ -430,7 +498,7 @@ public class SchedulerGUI extends JFrame {
         btn.setBackground(bgColor);
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        btn.setFont(new Font("Segoe UI", Font.BOLD, DPIUtil.scale(14)));
+        btn.setBorder(BorderFactory.createEmptyBorder(DPIUtil.scale(8), DPIUtil.scale(16), DPIUtil.scale(8), DPIUtil.scale(16)));
     }
 }

@@ -1,5 +1,7 @@
 package app.client.ui;
 
+import app.client.DPIUtil;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.Timer;
@@ -13,8 +15,8 @@ public class ConnectionStatusLabel extends JLabel {
 
     public ConnectionStatusLabel() {
         super("");
-        setPreferredSize(new Dimension(140, 30));
-        setFont(new Font("SansSerif", Font.BOLD, 12));
+        setPreferredSize(new Dimension(DPIUtil.scale(140), DPIUtil.scale(30)));
+        setFont(new Font("SansSerif", Font.BOLD, DPIUtil.scale(12)));
         setForeground(Color.WHITE);
         setHorizontalAlignment(SwingConstants.CENTER);
     }

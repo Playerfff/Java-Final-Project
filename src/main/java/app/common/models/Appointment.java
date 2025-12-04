@@ -9,26 +9,62 @@ public class Appointment {
     private String endTime;     // HH:mm
     private String status;
 
-    public Appointment() {}
+    public Appointment() {
+    }
 
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
+    public Integer getId() {
+        return id;
+    }
 
-    public Integer getUserId() { return userId; }
-    public void setUserId(Integer userId) { this.userId = userId; }
+    public void setId(Integer id) {
+        this.id = id;
+    }
 
-    public Integer getEmployeeId() { return employeeId; }
-    public void setEmployeeId(Integer employeeId) { this.employeeId = employeeId; }
+    public Integer getUserId() {
+        return userId;
+    }
 
-    public String getDate() { return date; }
-    public void setDate(String date) { this.date = date; }
+    public void setUserId(Integer userId) {
+        this.userId = userId;
+    }
 
-    public String getStartTime() {return startTime;}
-    public void setStartTime(String startTime) { this.startTime = startTime; }
+    public Integer getEmployeeId() {
+        return employeeId;
+    }
 
-    public String getEndTime() {return endTime;}
-    public void setEndTime(String endTime) { this.endTime = endTime; }
+    public void setEmployeeId(Integer employeeId) {
+        this.employeeId = employeeId;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public String getDate() {
+        return date;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
+    }
+
+    public String getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(String startTime) {
+        this.startTime = startTime;
+    }
+
+    public String getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(String endTime) {
+        this.endTime = endTime;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }

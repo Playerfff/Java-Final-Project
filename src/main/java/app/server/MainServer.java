@@ -2,6 +2,8 @@ package app.server;
 
 import app.common.models.User;
 import app.server.mappers.UserMapper;
+import org.apache.ibatis.binding.MapperMethod;
+import org.apache.ibatis.session.SqlSession;
 
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -33,7 +35,8 @@ public class MainServer {
             c.setAutoCommit(true);
             try (InputStream in = getClass().getClassLoader().getResourceAsStream("schema.sql")) {
                 if (in != null) {
-                    String sql = new String(in.readAllBytes());
+                    java.util.Scanner s = new java.util.Scanner(in).useDelimiter("\\A");
+                    String sql = s.hasNext() ? s.next() : "";
                     try (Statement st = c.createStatement()) {
                         st.executeUpdate("PRAGMA foreign_keys = ON;");
                         // split by semicolon and execute
@@ -45,14 +48,17 @@ public class MainServer {
                 }
             }
             // seed admin & employee if not exists using MyBatis
-            try (var session = MyBatisUtil.openSession()) {
-                var um = session.getMapper(UserMapper.class);
+            try (SqlSession session = MyBatisUtil.openSession()) {
+                UserMapper um = session.getMapper(UserMapper.class);
                 User u = um.findByUsername("admin");
                 if (u == null) {
                     String salt = Utils.randomSaltBase64(16);
                     String hash = Utils.hashPassword("admin123", salt);
                     User admin = new User();
-                    admin.setUsername("admin"); admin.setSalt(salt); admin.setHash(hash); admin.setRole("ADMIN");
+                    admin.setUsername("admin");
+                    admin.setSalt(salt);
+                    admin.setHash(hash);
+                    admin.setRole("ADMIN");
                     um.insertUser(admin);
                 }
                 User e = um.findByUsername("employee1");
@@ -60,7 +66,10 @@ public class MainServer {
                     String salt = Utils.randomSaltBase64(16);
                     String hash = Utils.hashPassword("emp123", salt);
                     User emp = new User();
-                    emp.setUsername("employee1"); emp.setSalt(salt); emp.setHash(hash); emp.setRole("EMPLOYEE");
+                    emp.setUsername("employee1");
+                    emp.setSalt(salt);
+                    emp.setHash(hash);
+                    emp.setRole("EMPLOYEE");
                     um.insertUser(emp);
                 }
             } catch (Exception ex) {

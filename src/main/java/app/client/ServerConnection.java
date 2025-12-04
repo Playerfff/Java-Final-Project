@@ -30,7 +30,10 @@ public class ServerConnection {
     }
 
     public void disconnect() {
-        try { if(socket != null) socket.close(); } catch(IOException e){}
+        try {
+            if (socket != null) socket.close();
+        } catch (IOException e) {
+        }
     }
 
     public boolean isConnected() {
@@ -38,7 +41,7 @@ public class ServerConnection {
     }
 
     public void send(String msg) {
-        if(out != null) out.println(msg);
+        if (out != null) out.println(msg);
     }
 
     public String readResponse() throws IOException {

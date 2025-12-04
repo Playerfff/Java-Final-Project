@@ -5,11 +5,15 @@
 <mapper namespace="app.server.mappers.UserMapper">
 
     <select id="findByUsername" parameterType="string" resultType="User">
-        SELECT id, username, hash, salt, role FROM users WHERE username = #{username}
+        SELECT id, username, hash, salt, role
+        FROM users
+        WHERE username = #{username}
     </select>
 
     <select id="findById" parameterType="int" resultType="User">
-        SELECT id, username, hash, salt, role FROM users WHERE id = #{id}
+        SELECT id, username, hash, salt, role
+        FROM users
+        WHERE id = #{id}
     </select>
 
     <insert id="insertUser" parameterType="User" useGeneratedKeys="true" keyProperty="id">
@@ -18,28 +22,35 @@
     </insert>
 
     <select id="findAll" resultType="User">
-        SELECT id, username, role FROM users
+        SELECT id, username, role
+        FROM users
     </select>
 
     <update id="updateUser" parameterType="User">
         UPDATE users
         SET username = #{username},
-            hash = #{hash},
-            salt = #{salt},
-            role = #{role}
+            hash     = #{hash},
+            salt     = #{salt},
+            role     = #{role}
         WHERE id = #{id}
     </update>
 
     <delete id="deleteUser" parameterType="int">
-        DELETE FROM users WHERE id = #{id}
+        DELETE
+        FROM users
+        WHERE id = #{id}
     </delete>
 
     <select id="listEmployees" resultType="map">
-        SELECT id, username FROM users WHERE role = 'EMPLOYEE'
+        SELECT id, username
+        FROM users
+        WHERE role = 'EMPLOYEE'
     </select>
 
     <select id="usernameById" parameterType="int" resultType="string">
-        SELECT username FROM users WHERE id = #{id}
+        SELECT username
+        FROM users
+        WHERE id = #{id}
     </select>
 
 </mapper>
