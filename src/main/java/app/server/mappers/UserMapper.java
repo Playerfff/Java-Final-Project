@@ -1,6 +1,6 @@
-package app.mappers;
+package app.server.mappers;
 
-import app.models.User;
+import app.common.models.User;
 import org.apache.ibatis.annotations.Mapper;
 import java.util.List;
 import java.util.Map;

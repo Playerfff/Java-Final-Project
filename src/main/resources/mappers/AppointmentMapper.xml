@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="app.mappers.AppointmentMapper">
+<mapper namespace="app.server.mappers.AppointmentMapper">
 
     <select id="findConflict" parameterType="map" resultType="java.lang.Integer">
         <![CDATA[

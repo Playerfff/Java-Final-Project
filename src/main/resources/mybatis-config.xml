@@ -4,8 +4,8 @@
         "http://mybatis.org/dtd/mybatis-3-config.dtd">
 <configuration>
     <typeAliases>
-        <typeAlias type="app.models.User" alias="User"/>
-        <typeAlias type="app.models.Appointment" alias="Appointment"/>
+        <typeAlias type="app.common.models.User" alias="User"/>
+        <typeAlias type="app.common.models.Appointment" alias="Appointment"/>
     </typeAliases>
 
     <environments default="development">

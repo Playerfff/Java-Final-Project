@@ -1,4 +1,4 @@
-package app;
+package app.server;
 
 import java.io.*;
 import java.net.Socket;
@@ -8,9 +8,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import app.mappers.AppointmentMapper;
-import app.models.Appointment;
-import app.models.User;
+import app.common.Protocol;
+import app.server.mappers.AppointmentMapper;
+import app.common.models.Appointment;
+import app.common.models.User;
+import app.server.mappers.UserMapper;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -42,18 +44,18 @@ public class ClientHandler implements Runnable {
                 String payload = parts.length > 1 ? parts[1] : "";
 
                 switch (cmd) {
-                    case "REGISTER": handleRegister(payload); break;
-                    case "LOGIN":    handleLogin(payload); break;
-                    case "LIST_EMPLOYEES": handleListEmployees(); break;
-                    case "BOOK":     handleBook(payload); break;
-                    case "MY_APPTS": handleMyAppts(); break;
-                    case "CONFIRM":  handleConfirm(payload); break;
+                    case Protocol.CMD_REGISTER: handleRegister(payload); break;
+                    case Protocol.CMD_LOGIN:    handleLogin(payload); break;
+                    case Protocol.CMD_LIST_EMPS: handleListEmployees(); break;
+                    case Protocol.CMD_BOOK:     handleBook(payload); break;
+                    case Protocol.CMD_MY_APPTS: handleMyAppts(); break;
+                    case Protocol.CMD_CONFIRM:  handleConfirm(payload); break;
                     case "MY_INFO":  handleMyInfo(); break;
                     // --- Admin Commands ---
-                    case "ADMIN_LIST_USERS": handleAdminListUsers(); break;
-                    case "ADMIN_ADD_USER":   handleAdminAddUser(payload); break;
-                    case "ADMIN_UPDATE_USER": handleAdminUpdateUser(payload); break;
-                    case "ADMIN_DELETE_USER": handleAdminDeleteUser(payload); break;
+                    case Protocol.CMD_ADMIN_LIST: handleAdminListUsers(); break;
+                    case Protocol.CMD_ADMIN_ADD:   handleAdminAddUser(payload); break;
+                    case Protocol.CMD_ADMIN_UPDATE: handleAdminUpdateUser(payload); break;
+                    case Protocol.CMD_ADMIN_DELETE: handleAdminDeleteUser(payload); break;
 
                     case "QUIT":
                         out.println("OK BYE");
@@ -71,7 +73,7 @@ public class ClientHandler implements Runnable {
 
     private void handleRegister(String payload) {
         try (var session = MyBatisUtil.openSession()) {
-            var um = session.getMapper(app.mappers.UserMapper.class);
+            var um = session.getMapper(UserMapper.class);
             String[] p = payload.split("\\|");
             if (p.length < 2) { out.println("ERROR BadPayload"); return; }
             String username = p[0], password = p[1];
@@ -90,7 +92,7 @@ public class ClientHandler implements Runnable {
 
     private void handleLogin(String payload) {
         try (var session = MyBatisUtil.openSession()) {
-            var um = session.getMapper(app.mappers.UserMapper.class);
+            var um = session.getMapper(UserMapper.class);
             String[] p = payload.split("\\|");
             if (p.length < 2) { out.println("ERROR BadPayload"); return; }
             String username = p[0], password = p[1];
@@ -111,7 +113,7 @@ public class ClientHandler implements Runnable {
     private void handleAdminListUsers() {
         if (!"ADMIN".equals(loggedUserRole)) { out.println("ERROR Denied"); return; }
         try (var session = MyBatisUtil.openSession()) {
-            var um = session.getMapper(app.mappers.UserMapper.class);
+            var um = session.getMapper(UserMapper.class);
             List<User> users = um.findAll();
             out.println("OK COUNT " + users.size());
             for (User u : users) {
@@ -134,7 +136,7 @@ public class ClientHandler implements Runnable {
         if (p.length < 4) { out.println("ERROR BadPayload"); return; }
 
         try (var session = MyBatisUtil.openSession()) {
-            var um = session.getMapper(app.mappers.UserMapper.class);
+            var um = session.getMapper(UserMapper.class);
             int id = Integer.parseInt(p[0]);
             String username = p[1];
             String password = p[2];
@@ -162,7 +164,7 @@ public class ClientHandler implements Runnable {
     private void handleAdminDeleteUser(String payload) {
         if (!"ADMIN".equals(loggedUserRole)) { out.println("ERROR Denied"); return; }
         try (var session = MyBatisUtil.openSession()) {
-            var um = session.getMapper(app.mappers.UserMapper.class);
+            var um = session.getMapper(UserMapper.class);
             int id = Integer.parseInt(payload);
             um.deleteUser(id);
             out.println("OK Deleted");
@@ -173,7 +175,7 @@ public class ClientHandler implements Runnable {
 
     private void handleListEmployees() {
         try (var session = MyBatisUtil.openSession()) {
-            var um = session.getMapper(app.mappers.UserMapper.class);
+            var um = session.getMapper(UserMapper.class);
             List<Map<String, Object>> emps = um.listEmployees();
             out.println("OK COUNT " + emps.size());
             for (Map<String, Object> m : emps) {
@@ -223,7 +225,7 @@ public class ClientHandler implements Runnable {
         if (loggedUserId == null) { out.println("ERROR NotLoggedIn"); return; }
         try (var session = MyBatisUtil.openSession()) {
             var am = session.getMapper(AppointmentMapper.class);
-            var um = session.getMapper(app.mappers.UserMapper.class);
+            var um = session.getMapper(UserMapper.class);
             List<Appointment> list;
             if ("EMPLOYEE".equalsIgnoreCase(loggedUserRole)) list = am.listByEmployee(loggedUserId);
             else list = am.listByUser(loggedUserId);
@@ -255,7 +257,7 @@ public class ClientHandler implements Runnable {
     private void handleMyInfo() {
         if (loggedUserId == null) { out.println("ERROR NotLoggedIn"); return; }
         try (var session = MyBatisUtil.openSession()) {
-            var um = session.getMapper(app.mappers.UserMapper.class);
+            var um = session.getMapper(UserMapper.class);
             User u = um.findByUsername(um.usernameById(loggedUserId));
             out.println("OK " + u.getUsername() + " " + u.getRole());
             out.println("END");

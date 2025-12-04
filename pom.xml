@@ -45,7 +45,7 @@
                     <execution>
                         <id>run-server</id>
                         <configuration>
-                            <mainClass>app.MainServer</mainClass>
+                            <mainClass>app.server.MainServer</mainClass>
                         </configuration>
                     </execution>
                 </executions>

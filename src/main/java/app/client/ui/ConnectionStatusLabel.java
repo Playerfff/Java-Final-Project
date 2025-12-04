@@ -1,4 +1,4 @@
-package app.ui;
+package app.client.ui;
 
 import javax.swing.*;
 import java.awt.*;

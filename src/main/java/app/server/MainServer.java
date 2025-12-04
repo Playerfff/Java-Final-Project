@@ -1,4 +1,7 @@
-package app;
+package app.server;
+
+import app.common.models.User;
+import app.server.mappers.UserMapper;
 
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -8,8 +11,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.io.InputStream;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.io.IOException;
 
 /**
@@ -45,20 +46,20 @@ public class MainServer {
             }
             // seed admin & employee if not exists using MyBatis
             try (var session = MyBatisUtil.openSession()) {
-                var um = session.getMapper(app.mappers.UserMapper.class);
-                app.models.User u = um.findByUsername("admin");
+                var um = session.getMapper(UserMapper.class);
+                User u = um.findByUsername("admin");
                 if (u == null) {
                     String salt = Utils.randomSaltBase64(16);
                     String hash = Utils.hashPassword("admin123", salt);
-                    app.models.User admin = new app.models.User();
+                    User admin = new User();
                     admin.setUsername("admin"); admin.setSalt(salt); admin.setHash(hash); admin.setRole("ADMIN");
                     um.insertUser(admin);
                 }
-                app.models.User e = um.findByUsername("employee1");
+                User e = um.findByUsername("employee1");
                 if (e == null) {
                     String salt = Utils.randomSaltBase64(16);
                     String hash = Utils.hashPassword("emp123", salt);
-                    app.models.User emp = new app.models.User();
+                    User emp = new User();
                     emp.setUsername("employee1"); emp.setSalt(salt); emp.setHash(hash); emp.setRole("EMPLOYEE");
                     um.insertUser(emp);
                 }

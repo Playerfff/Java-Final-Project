@@ -1,4 +1,4 @@
-package app;
+package app.server;
 
 import java.io.InputStream;
 import org.apache.ibatis.io.Resources;

@@ -1,13 +1,13 @@
-package app;
+package app.client;
 
-import app.ui.ConnectionStatusLabel;
+import app.common.Protocol;
+import app.common.models.Role;
+import app.client.ui.ConnectionStatusLabel;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.io.*;
-import java.net.Socket;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -19,13 +19,13 @@ public class SchedulerGUI extends JFrame {
     private final String host;
     private final int port;
 
-    private Socket socket;
-    private BufferedReader in;
-    private PrintWriter out;
+    // Refactoring 3: Use a helper class for networking
+    private ServerConnection server;
 
     private volatile Integer loggedUserId = null;
     private volatile String loggedUsername = null;
-    private volatile String loggedRole = null;
+    // Refactoring 1: Use Enum instead of String
+    private volatile Role loggedRole = null;
 
     // UI Components
     private final ConnectionStatusLabel connectionStatusLabel;
@@ -34,9 +34,9 @@ public class SchedulerGUI extends JFrame {
 
     // Dashboard Buttons
     private JButton btnBook;
-    private JButton btnMyAppts; // For Users: History. For Employees: Pending.
+    private JButton btnMyAppts;
     private JButton btnListEmps;
-    private JButton btnAdminPanel; // For Admins
+    private JButton btnAdminPanel;
     private JPanel dashboardPanel;
 
     private Timer connectionTimer;
@@ -44,6 +44,7 @@ public class SchedulerGUI extends JFrame {
     public SchedulerGUI(String host, int port) {
         this.host = host;
         this.port = port;
+        this.server = new ServerConnection(host, port);
 
         setTitle("Appointment Scheduler System");
         setSize(1000, 700);
@@ -51,7 +52,7 @@ public class SchedulerGUI extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        // Header
+        // --- Header ---
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(new Color(50, 50, 60));
         headerPanel.setBorder(new EmptyBorder(15, 20, 15, 20));
@@ -75,13 +76,12 @@ public class SchedulerGUI extends JFrame {
         headerPanel.add(btnLoginAction, BorderLayout.EAST);
         add(headerPanel, BorderLayout.NORTH);
 
-        // Dashboard
+        // --- Dashboard ---
         dashboardPanel = new JPanel(new GridBagLayout());
         dashboardPanel.setBackground(new Color(245, 245, 250));
 
-        // Create buttons
         btnBook = createDashboardButton("Book Appointment", "📅");
-        btnMyAppts = createDashboardButton("My Appointments", "📂"); // Text changes based on role
+        btnMyAppts = createDashboardButton("My Appointments", "📂");
         btnListEmps = createDashboardButton("View Employees", "👥");
         btnAdminPanel = createDashboardButton("Manage Users", "🛠️");
 
@@ -102,6 +102,7 @@ public class SchedulerGUI extends JFrame {
         gbc.insets = new Insets(20, 20, 20, 20);
 
         if (loggedUserId == null) {
+            // Guest View
             lblWelcome.setText("Welcome, Guest");
             btnLoginAction.setText("Login");
             btnLoginAction.setBackground(new Color(40, 167, 69));
@@ -109,22 +110,20 @@ public class SchedulerGUI extends JFrame {
             info.setForeground(Color.GRAY);
             dashboardPanel.add(info);
         } else {
+            // Logged In View
             lblWelcome.setText("Welcome, " + loggedUsername + " (" + loggedRole + ")");
             btnLoginAction.setText("Logout");
             btnLoginAction.setBackground(new Color(220, 53, 69));
 
-            // --- ROLE BASED UI ---
-            if ("ADMIN".equalsIgnoreCase(loggedRole)) {
-                // Admin sees Manage Users & View Employees
+            // Role-Based Dashboard Logic
+            if (loggedRole == Role.ADMIN) {
                 gbc.gridx = 0; dashboardPanel.add(btnAdminPanel, gbc);
                 gbc.gridx = 1; dashboardPanel.add(btnListEmps, gbc);
-            } else if ("EMPLOYEE".equalsIgnoreCase(loggedRole)) {
-                // Employee sees Pending Approvals & View Employees (NO BOOKING)
+            } else if (loggedRole == Role.EMPLOYEE) {
                 updateButtonText(btnMyAppts, "Approve Requests", "📝");
                 gbc.gridx = 0; dashboardPanel.add(btnMyAppts, gbc);
                 gbc.gridx = 1; dashboardPanel.add(btnListEmps, gbc);
             } else {
-                // Regular User sees Book, My History, View Employees
                 updateButtonText(btnMyAppts, "My Appointments", "📂");
                 gbc.gridx = 0; dashboardPanel.add(btnBook, gbc);
                 gbc.gridx = 1; dashboardPanel.add(btnMyAppts, gbc);
@@ -135,31 +134,29 @@ public class SchedulerGUI extends JFrame {
         dashboardPanel.repaint();
     }
 
-    // --- ADMIN PANEL ---
+    // --- Admin Feature ---
     private void openAdminDialog() {
         JDialog dlg = new JDialog(this, "Admin Management", true);
         dlg.setLayout(new BorderLayout());
 
-        // Table Columns: ID, Username, Role
         DefaultTableModel tableModel = new DefaultTableModel(new String[]{"ID", "Username", "Role"}, 0);
         JTable table = new JTable(tableModel);
 
-        // Fetch Users
-        sendLine("ADMIN_LIST_USERS");
+        // Fetch Users using Protocol constant
+        server.send(Protocol.CMD_ADMIN_LIST);
         try {
             String line;
-            while ((line = readResponse()) != null) {
+            while ((line = server.readResponse()) != null) {
                 if ("END".equals(line)) break;
-                // USER ID|Username|Role
                 if (line.startsWith("USER ")) {
                     String[] parts = line.substring(5).split("\\|");
                     tableModel.addRow(parts);
                 }
             }
-        } catch (IOException e) { JOptionPane.showMessageDialog(this, "Error fetching users"); return; }
+        } catch (Exception e) { return; }
 
         JPanel btnPanel = new JPanel();
-        JButton btnAdd = new JButton("Add One Role");
+        JButton btnAdd = new JButton("Add User");
         JButton btnEdit = new JButton("Edit Selected");
         JButton btnDelete = new JButton("Delete Selected");
 
@@ -167,18 +164,17 @@ public class SchedulerGUI extends JFrame {
         dlg.add(new JScrollPane(table), BorderLayout.CENTER);
         dlg.add(btnPanel, BorderLayout.SOUTH);
 
-        // Add Action
         btnAdd.addActionListener(e -> {
             JTextField tfUser = new JTextField(), tfRole = new JTextField("USER");
             JPasswordField pfPass = new JPasswordField();
             Object[] msg = {"Username:", tfUser, "Password:", pfPass, "Role (USER/EMPLOYEE/ADMIN):", tfRole};
             if (JOptionPane.showConfirmDialog(dlg, msg, "Add User", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-                sendLine("ADMIN_ADD_USER " + tfUser.getText() + "|" + new String(pfPass.getPassword()) + "|" + tfRole.getText());
-                try { JOptionPane.showMessageDialog(dlg, readResponse()); dlg.dispose(); openAdminDialog(); } catch(Exception ex){}
+                String cmd = Protocol.CMD_ADMIN_ADD + " " + tfUser.getText() + "|" + new String(pfPass.getPassword()) + "|" + tfRole.getText();
+                server.send(cmd);
+                try { JOptionPane.showMessageDialog(dlg, server.readResponse()); dlg.dispose(); openAdminDialog(); } catch(Exception ex){}
             }
         });
 
-        // Edit Action
         btnEdit.addActionListener(e -> {
             int row = table.getSelectedRow();
             if (row < 0) return;
@@ -190,132 +186,69 @@ public class SchedulerGUI extends JFrame {
             JPasswordField pfPass = new JPasswordField();
             Object[] msg = {"Username:", tfUser, "New Password (leave empty to keep):", pfPass, "Role:", tfRole};
             if (JOptionPane.showConfirmDialog(dlg, msg, "Edit User", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-                sendLine("ADMIN_UPDATE_USER " + id + "|" + tfUser.getText() + "|" + new String(pfPass.getPassword()) + "|" + tfRole.getText());
-                try { JOptionPane.showMessageDialog(dlg, readResponse()); dlg.dispose(); openAdminDialog(); } catch(Exception ex){}
+                String cmd = Protocol.CMD_ADMIN_UPDATE + " " + id + "|" + tfUser.getText() + "|" + new String(pfPass.getPassword()) + "|" + tfRole.getText();
+                server.send(cmd);
+                try { JOptionPane.showMessageDialog(dlg, server.readResponse()); dlg.dispose(); openAdminDialog(); } catch(Exception ex){}
             }
         });
 
-        // Delete Action
         btnDelete.addActionListener(e -> {
             int row = table.getSelectedRow();
             if (row < 0) return;
             String id = (String) tableModel.getValueAt(row, 0);
             if (JOptionPane.showConfirmDialog(dlg, "Delete User ID " + id + "?") == JOptionPane.YES_OPTION) {
-                sendLine("ADMIN_DELETE_USER " + id);
-                try { JOptionPane.showMessageDialog(dlg, readResponse()); dlg.dispose(); openAdminDialog(); } catch(Exception ex){}
+                server.send(Protocol.CMD_ADMIN_DELETE + " " + id);
+                try { JOptionPane.showMessageDialog(dlg, server.readResponse()); dlg.dispose(); openAdminDialog(); } catch(Exception ex){}
             }
         });
 
-        dlg.setSize(600, 400);
-        dlg.setLocationRelativeTo(this);
-        dlg.setVisible(true);
+        dlg.setSize(600, 400); dlg.setLocationRelativeTo(this); dlg.setVisible(true);
     }
 
-    // --- UTILS ---
-    private void updateButtonText(JButton btn, String text, String icon) {
-        btn.setText("<html><center><font size='6'>" + icon + "</font><br/><br/>" + text + "</center></html>");
-    }
-
-    private JButton createDashboardButton(String text, String iconEmoji) {
-        JButton btn = new JButton();
-        updateButtonText(btn, text, iconEmoji);
-        btn.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        btn.setFocusPainted(false);
-        btn.setBackground(Color.WHITE);
-        btn.setForeground(new Color(50, 50, 50));
-        btn.setPreferredSize(new Dimension(220, 180));
-        btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)
-        ));
-        btn.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) { if(btn.isEnabled()) btn.setBackground(new Color(235, 245, 255)); }
-            public void mouseExited(java.awt.event.MouseEvent evt) { if(btn.isEnabled()) btn.setBackground(Color.WHITE); }
-        });
-        return btn;
-    }
-
-    private void styleButton(JButton btn, Color bgColor) {
-        btn.setBackground(bgColor);
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
-    }
-
-    private void handleLoginLogoutAction() {
-        if (loggedUserId == null) showLoginDialog();
-        else logout();
-    }
-
-    private void logout() {
-        try { if (socket != null) socket.close(); } catch (IOException ignored) {}
-        loggedUserId = null; loggedUsername = null; loggedRole = null;
-        updateDashboardState();
-    }
-
+    // --- Networking ---
     private void autoConnect() {
         connectionTimer = new Timer(true);
         connectionTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                try {
-                    boolean alive = isAlive();
-                    if (!alive) {
-                        SwingUtilities.invokeLater(connectionStatusLabel::startReconnecting);
-                        SwingUtilities.invokeLater(() -> {
-                            btnLoginAction.setEnabled(false);
-                            if (loggedUserId != null) { loggedUserId = null; updateDashboardState(); }
-                        });
-                        tryConnect();
-                    } else {
+                if (!server.isConnected()) {
+                    SwingUtilities.invokeLater(() -> {
+                        connectionStatusLabel.startReconnecting();
+                        btnLoginAction.setEnabled(false);
+                        if (loggedUserId != null) { loggedUserId = null; updateDashboardState(); }
+                    });
+                    if (server.connect()) {
                         SwingUtilities.invokeLater(() -> {
                             connectionStatusLabel.setConnected();
                             btnLoginAction.setEnabled(true);
                         });
                     }
-                } catch (Exception ex) { System.err.println("ConnectionTimer error: " + ex.getMessage()); }
+                }
             }
         }, 0, 2000);
     }
 
-    private boolean isAlive() {
-        if (socket == null || socket.isClosed() || !socket.isConnected()) return false;
-        try { out.println("PING"); if (out.checkError()) return false; return true; } catch (Exception e) { return false; }
-    }
-
-    private synchronized void tryConnect() {
-        try {
-            socket = new Socket(host, port);
-            socket.setSoTimeout(5000);
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            out = new PrintWriter(socket.getOutputStream(), true);
-            try { in.readLine(); } catch (IOException ignored) {}
-            System.out.println("Connected to " + host + ":" + port);
-        } catch (IOException e) {}
-    }
-
-    private String readResponse() throws IOException {
-        String line;
-        while ((line = in.readLine()) != null) {
-            if ("PONG".equalsIgnoreCase(line.trim())) continue;
-            return line;
+    private void handleLoginLogoutAction() {
+        if (loggedUserId == null) showLoginDialog();
+        else {
+            server.disconnect(); // Explicitly disconnect
+            loggedUserId = null; loggedUsername = null; loggedRole = null;
+            updateDashboardState();
         }
-        return null;
     }
 
-    private void sendLine(String s) { if (out != null) out.println(s); }
-
-    // --- DIALOGS ---
+    // --- Dialogs ---
     private void showLoginDialog() {
         JDialog dlg = new JDialog(this, "Login System", true);
         dlg.setLayout(new BorderLayout());
         JPanel center = new JPanel(new GridLayout(3, 2, 10, 10));
         center.setBorder(new EmptyBorder(20, 20, 20, 20));
+
         JTextField tfUser = new JTextField();
         JPasswordField pf = new JPasswordField();
         center.add(new JLabel("Username:")); center.add(tfUser);
         center.add(new JLabel("Password:")); center.add(pf);
+
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton btnLogin = new JButton("Login");
         JButton btnSignup = new JButton("Register");
@@ -327,44 +260,51 @@ public class SchedulerGUI extends JFrame {
             String u = tfUser.getText().trim();
             String p = new String(pf.getPassword());
             if (u.isEmpty()) return;
-            sendLine("LOGIN " + u + "|" + p);
+
+            // Refactoring 2: Use Protocol
+            server.send(Protocol.CMD_LOGIN + " " + u + "|" + p);
             try {
-                String r = readResponse();
+                String r = server.readResponse();
                 if (r != null && r.startsWith("OK ")) {
+                    // Response: OK ID|Username|Role
                     String[] parts = r.substring(3).split("\\|");
                     loggedUserId = Integer.parseInt(parts[0]);
                     loggedUsername = parts.length > 1 ? parts[1] : u;
-                    loggedRole = parts.length > 2 ? parts[2] : "USER";
+                    // Parse Role
+                    try {
+                        loggedRole = Role.valueOf(parts.length > 2 ? parts[2].toUpperCase() : "USER");
+                    } catch (IllegalArgumentException ex) { loggedRole = Role.USER; }
+
                     updateDashboardState();
                     dlg.dispose();
                 } else JOptionPane.showMessageDialog(dlg, "Login Failed: " + r);
-            } catch (IOException ex) { JOptionPane.showMessageDialog(dlg, "Network Error"); }
+            } catch (Exception ex) { JOptionPane.showMessageDialog(dlg, "Network Error"); }
         });
 
         btnSignup.addActionListener(e -> {
             String u = tfUser.getText().trim();
             String p = new String(pf.getPassword());
             if (u.isEmpty()) return;
-            sendLine("REGISTER " + u + "|" + p + "|USER");
+            server.send(Protocol.CMD_REGISTER + " " + u + "|" + p + "|USER");
             try {
-                String r = readResponse(); // Using readResponse here too
+                String r = server.readResponse();
                 if (r != null && r.startsWith("OK")) JOptionPane.showMessageDialog(dlg, "Registered! Please Login.");
                 else JOptionPane.showMessageDialog(dlg, "Register Error: " + r);
-            } catch (IOException ex) { JOptionPane.showMessageDialog(dlg, "Network Error"); }
+            } catch (Exception ex) { JOptionPane.showMessageDialog(dlg, "Network Error"); }
         });
         dlg.setVisible(true);
     }
 
     private void openBookingDialog() {
-        sendLine("LIST_EMPLOYEES");
+        server.send(Protocol.CMD_LIST_EMPS);
         List<String> employees = new ArrayList<>();
         try {
             String line;
-            while ((line = readResponse()) != null) {
+            while ((line = server.readResponse()) != null) {
                 if ("END".equals(line)) break;
                 if (line.startsWith("EMP ")) employees.add(line.substring(4));
             }
-        } catch (IOException e) { return; }
+        } catch (Exception e) { return; }
 
         JDialog dlg = new JDialog(this, "Book Appointment", true);
         dlg.setLayout(new BorderLayout(10, 10));
@@ -376,8 +316,9 @@ public class SchedulerGUI extends JFrame {
 
         JPanel grid = new JPanel(new GridLayout(0, 3, 5, 5));
         grid.setBorder(new EmptyBorder(10, 10, 10, 10));
-        ButtonGroup group = new ButtonGroup();
         List<JToggleButton> toggles = new ArrayList<>();
+        ButtonGroup group = new ButtonGroup();
+
         LocalDate startDate = LocalDate.now().plusDays(1);
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -392,11 +333,10 @@ public class SchedulerGUI extends JFrame {
             }
         }
         dlg.add(new JScrollPane(grid), BorderLayout.CENTER);
+
         JButton btnConfirm = new JButton("Confirm Booking");
-        btnConfirm.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnConfirm.setBackground(new Color(40, 167, 69));
         btnConfirm.setForeground(Color.WHITE);
-
         btnConfirm.addActionListener(e -> {
             String emp = (String) cb.getSelectedItem();
             if (emp == null) return;
@@ -404,12 +344,11 @@ public class SchedulerGUI extends JFrame {
             for (JToggleButton t : toggles) {
                 if (t.isSelected()) {
                     String[] parts = t.getText().split(" ");
-                    String date = parts[0], start = parts[1];
-                    LocalTime st = LocalTime.parse(start);
-                    String end = st.plusMinutes(30).toString();
-                    sendLine("BOOK " + empId + "|" + date + "|" + start + "|" + end);
+                    String start = parts[1];
+                    String end = LocalTime.parse(start).plusMinutes(30).toString();
+                    server.send(Protocol.CMD_BOOK + " " + empId + "|" + parts[0] + "|" + start + "|" + end);
                     try {
-                        String resp = readResponse();
+                        String resp = server.readResponse();
                         JOptionPane.showMessageDialog(dlg, resp);
                         if (resp.startsWith("OK")) dlg.dispose();
                     } catch (Exception ex) {}
@@ -422,33 +361,29 @@ public class SchedulerGUI extends JFrame {
     }
 
     private void showAppointments() {
-        sendLine("MY_APPTS");
+        server.send(Protocol.CMD_MY_APPTS);
         DefaultListModel<String> model = new DefaultListModel<>();
         try {
             String line;
-            while ((line = readResponse()) != null) {
+            while ((line = server.readResponse()) != null) {
                 if ("END".equals(line)) break;
                 if (line.startsWith("APPT ")) model.addElement(line.substring(5));
             }
-        } catch (IOException e) { return; }
+        } catch (Exception e) { return; }
 
-        String title = "EMPLOYEE".equalsIgnoreCase(loggedRole) ? "Approve Pending Requests" : "My Appointments";
-        JDialog dlg = new JDialog(this, title, true);
+        JDialog dlg = new JDialog(this, "Appointments", true);
         dlg.setLayout(new BorderLayout());
         JList<String> list = new JList<>(model);
-        list.setFont(new Font("Monospaced", Font.PLAIN, 14));
         dlg.add(new JScrollPane(list), BorderLayout.CENTER);
 
-        if ("EMPLOYEE".equalsIgnoreCase(loggedRole)) {
+        if (loggedRole == Role.EMPLOYEE) {
             JButton btnConf = new JButton("Approve Selected");
-            btnConf.setBackground(new Color(40, 167, 69));
-            btnConf.setForeground(Color.WHITE);
             btnConf.addActionListener(e -> {
                 String val = list.getSelectedValue();
                 if (val != null) {
                     String id = val.split("\\|")[0];
-                    sendLine("CONFIRM " + id);
-                    try { JOptionPane.showMessageDialog(dlg, readResponse()); dlg.dispose(); showAppointments(); } catch (Exception ex) {}
+                    server.send(Protocol.CMD_CONFIRM + " " + id);
+                    try { JOptionPane.showMessageDialog(dlg, server.readResponse()); dlg.dispose(); showAppointments(); } catch (Exception ex) {}
                 }
             });
             dlg.add(btnConf, BorderLayout.SOUTH);
@@ -457,21 +392,45 @@ public class SchedulerGUI extends JFrame {
     }
 
     private void showEmployeeDialog() {
-        sendLine("LIST_EMPLOYEES");
+        server.send(Protocol.CMD_LIST_EMPS);
         List<String> employees = new ArrayList<>();
         try {
             String line;
-            while ((line = readResponse()) != null) {
+            while ((line = server.readResponse()) != null) {
                 if ("END".equals(line)) break;
                 if (line.startsWith("EMP ")) employees.add(line.substring(4));
-                if (line.startsWith("ERROR")) break;
             }
-        } catch (IOException e) { return; }
+        } catch (Exception e) { return; }
         JDialog dlg = new JDialog(this, "Employees", true);
         DefaultListModel<String> model = new DefaultListModel<>();
         for (String s : employees) model.addElement(s);
-        JList<String> list = new JList<>(model);
-        dlg.add(new JScrollPane(list), BorderLayout.CENTER);
+        dlg.add(new JScrollPane(new JList<>(model)), BorderLayout.CENTER);
         dlg.setSize(300, 400); dlg.setLocationRelativeTo(this); dlg.setVisible(true);
+    }
+
+    // --- Helpers ---
+    private JButton createDashboardButton(String text, String icon) {
+        JButton btn = new JButton();
+        updateButtonText(btn, text, icon);
+        btn.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        btn.setFocusPainted(false);
+        btn.setBackground(Color.WHITE);
+        btn.setPreferredSize(new Dimension(220, 180));
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
+        return btn;
+    }
+
+    private void updateButtonText(JButton btn, String text, String icon) {
+        btn.setText("<html><center><font size='6'>" + icon + "</font><br/><br/>" + text + "</center></html>");
+    }
+
+    private void styleButton(JButton btn, Color bgColor) {
+        btn.setBackground(bgColor);
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
     }
 }

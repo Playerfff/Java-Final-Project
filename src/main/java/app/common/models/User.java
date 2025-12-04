@@ -1,4 +1,4 @@
-package app.models;
+package app.common.models;
 
 public class User {
     private Integer id;

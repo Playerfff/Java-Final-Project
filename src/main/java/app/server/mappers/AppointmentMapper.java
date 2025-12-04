@@ -1,6 +1,6 @@
-package app.mappers;
+package app.server.mappers;
 
-import app.models.Appointment;
+import app.common.models.Appointment;
 import org.apache.ibatis.annotations.Mapper;
 import java.util.Map;
 

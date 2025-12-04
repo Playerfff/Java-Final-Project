@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="app.mappers.UserMapper">
+<mapper namespace="app.server.mappers.UserMapper">
 
     <select id="findByUsername" parameterType="string" resultType="User">
         SELECT id, username, hash, salt, role FROM users WHERE username = #{username}
